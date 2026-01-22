@@ -10,7 +10,6 @@
 </head>
 <body class="bg-gray-100">
 
-    <!-- OVERLAY ĐĂNG NHẬP (Chỉ hiện khi chưa login) -->
     <div id="login-overlay" class="fixed inset-0 bg-white z-50 flex flex-col justify-center items-center">
         <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md w-full border border-gray-200">
             <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Logo_Đại_học_Hải_Phòng.png" alt="Logo" class="h-24 mx-auto mb-4 object-contain">
@@ -24,9 +23,7 @@
         </div>
     </div>
 
-    <!-- DASHBOARD (Hiện sau khi login) -->
     <div id="dashboard-ui" class="min-h-screen hidden flex-col">
-        <!-- Navbar -->
         <nav class="bg-blue-900 text-white shadow-lg">
             <div class="container mx-auto px-6 py-4 flex justify-between items-center">
                 <div class="flex items-center space-x-3">
@@ -48,14 +45,14 @@
             </div>
         </nav>
 
-        <!-- Main Grid -->
         <main class="flex-grow container mx-auto px-6 py-10">
             <h2 class="text-2xl font-bold text-gray-800 mb-6 border-l-4 border-blue-600 pl-3">Các Hệ Thống Quản Lý</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
                 <!-- MODULE 1: BÀI BÁO KHOA HỌC -->
-                <a href="articles.html" class="block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group">
+                <!-- SỬA Ở ĐÂY: href="articles/" (thay vì articles.html) -->
+                <a href="articles/" class="block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group">
                     <div class="bg-blue-600 h-2 group-hover:bg-blue-500 transition"></div>
                     <div class="p-6">
                         <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-4 text-2xl">
@@ -66,7 +63,6 @@
                     </div>
                 </a>
 
-                <!-- MODULE 2: (Ví dụ tương lai - Đề tài NCKH) -->
                 <div class="bg-white rounded-xl shadow-md opacity-60 cursor-not-allowed overflow-hidden relative">
                     <div class="absolute top-4 right-4 bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded">Sắp ra mắt</div>
                     <div class="bg-gray-400 h-2"></div>
@@ -79,7 +75,6 @@
                     </div>
                 </div>
 
-                <!-- MODULE 3: (Ví dụ tương lai - Quản lý Admin) -->
                 <div id="admin-module" class="hidden bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden border-2 border-purple-100">
                     <div class="bg-purple-600 h-2"></div>
                     <div class="p-6">

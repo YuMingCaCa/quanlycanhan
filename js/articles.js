@@ -1,54 +1,46 @@
 import { db } from './firebase-config.js';
 import { collection, addDoc, doc, updateDoc, deleteDoc, query, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+// Import file common (Do cả 2 file js đều nằm cùng thư mục js/ nên đường dẫn import giữ nguyên)
 import { requireAuth, setupLogoutButton } from './common.js';
 
-// --- BIẾN TRẠNG THÁI ---
 let currentUser = null;
 let currentRole = 'guest';
 
-// --- KHỞI TẠO ---
-// Chỉ chạy code khi đã qua vòng kiểm tra đăng nhập
+// --- QUAN TRỌNG: Cấu hình đường dẫn lùi về trang chủ ---
+const HOME_PATH = '../index.html'; 
+
 requireAuth((user, role) => {
     currentUser = user;
     currentRole = role;
     
-    // Ẩn loading, hiện giao diện chính
     document.getElementById('auth-loading').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     document.getElementById('main-app').classList.add('flex');
 
-    // Setup thông tin user
     document.getElementById('user-display').textContent = user.email;
-    setupLogoutButton();
+    
+    // Khi logout hoặc chưa login thì lùi về HOME_PATH
+    setupLogoutButton(HOME_PATH);
+    
     setupUIByRole();
     loadData();
-});
+}, HOME_PATH); // Tham số thứ 2 là nơi chuyển về nếu chưa đăng nhập
 
-// --- PHÂN QUYỀN TRÊN GIAO DIỆN ---
+// --- (Các phần logic dưới giữ nguyên như cũ) ---
 function setupUIByRole() {
-    // Điền thông tin vào mẫu in
     document.getElementById('print-name').textContent = (currentUser.displayName || "").toUpperCase();
     document.getElementById('print-email').textContent = currentUser.email;
     document.getElementById('print-signer').textContent = currentUser.displayName;
-
-    // Admin hoặc Member đều được thêm bài (Ví dụ)
-    // Hoặc nếu bạn muốn chỉ Admin được thêm:
-    // if (currentRole === 'admin') ...
     document.getElementById('btn-add').classList.remove('hidden');
-
-    // Chỉ Admin mới thấy cột thao tác (Sửa/Xóa)
     if (currentRole === 'admin') {
         document.querySelectorAll('.action-col').forEach(el => el.classList.remove('hidden'));
     }
 }
 
-// --- LOGIC DỮ LIỆU ---
 const getRef = () => collection(db, 'articles');
 
 function loadData() {
-    // Sắp xếp theo thời gian
     const q = query(getRef(), orderBy("createdAt", "desc"));
-    
     onSnapshot(q, (snapshot) => {
         const tbody = document.getElementById('table-body');
         const printBody = document.getElementById('print-table-body');
@@ -64,7 +56,6 @@ function loadData() {
             renderRow(item, index++, tbody, printBody);
         });
         
-        // Fill dòng trống cho mẫu in
         while(index <= 5) {
              printBody.insertAdjacentHTML('beforeend', '<tr><td></td><td></td><td></td><td></td><td></td></tr>');
              index++;
@@ -73,11 +64,8 @@ function loadData() {
 }
 
 function renderRow(item, index, tbody, printBody) {
-    // 1. Dòng quản lý
     const tr = document.createElement('tr');
     tr.className = "border-b hover:bg-gray-50";
-    
-    // Nút thao tác chỉ hiện nếu là Admin
     const actionBtns = currentRole === 'admin' ? `
         <button class="text-blue-600 mr-3" onclick="openModal('${item.id}')"><i class="fas fa-edit"></i></button>
         <button class="text-red-600" onclick="deleteItem('${item.id}')"><i class="fas fa-trash"></i></button>
@@ -93,7 +81,6 @@ function renderRow(item, index, tbody, printBody) {
     `;
     tbody.appendChild(tr);
 
-    // 2. Dòng in ấn
     printBody.insertAdjacentHTML('beforeend', `
         <tr>
             <td style="text-align:center">${index}</td>
@@ -105,24 +92,14 @@ function renderRow(item, index, tbody, printBody) {
     `);
 }
 
-// --- THÊM / SỬA / XÓA ---
 let editId = null;
-
-// Gán vào window để HTML gọi được
 window.openModal = (id = null) => {
     document.getElementById('form-article').reset();
     editId = null;
     document.getElementById('modal-title').textContent = "Thêm Mới";
-
     if (id) {
-        // Chế độ sửa: Cần query lấy data item này từ bảng (hoặc fetch lại)
-        // Cách nhanh: Tìm trong mảng data (ở đây ta chưa lưu mảng global, nên fetch lại 1 doc)
-        // Để đơn giản, tôi sẽ query trực tiếp DOM hoặc bạn có thể lưu mảng data global như bài trước.
-        // Ở đây tôi làm cách query 1 doc cho chuẩn:
         editId = id;
         document.getElementById('modal-title').textContent = "Đang tải...";
-        
-        // Load data lên form
         import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js")
             .then(({ getDoc, doc }) => getDoc(doc(db, 'articles', id)))
             .then(snap => {
@@ -150,21 +127,14 @@ document.getElementById('form-article').addEventListener('submit', async (e) => 
         danhMuc: document.getElementById('danh-muc').value,
         updatedAt: Date.now()
     };
-    
     try {
-        if (editId) {
-            await updateDoc(doc(getRef(), editId), data);
-        } else {
-            data.createdAt = Date.now();
-            await addDoc(getRef(), data);
-        }
+        if (editId) await updateDoc(doc(getRef(), editId), data);
+        else { data.createdAt = Date.now(); await addDoc(getRef(), data); }
         closeModal();
     } catch (err) { alert(err.message); }
 });
 
-window.deleteItem = async (id) => {
-    if(confirm("Xóa bài này?")) await deleteDoc(doc(getRef(), id));
-};
+window.deleteItem = async (id) => { if(confirm("Xóa bài này?")) await deleteDoc(doc(getRef(), id)); };
 
 window.togglePreview = () => {
     const p = document.getElementById('print-area');
@@ -178,7 +148,6 @@ window.togglePreview = () => {
     }
 };
 
-// Search
 document.getElementById('search-input').addEventListener('keyup', (e) => {
     const term = e.target.value.toLowerCase();
     document.querySelectorAll('#table-body tr').forEach(row => {

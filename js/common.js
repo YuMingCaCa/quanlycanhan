@@ -2,47 +2,42 @@ import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Hàm đăng xuất (Dùng cho mọi trang)
-export function setupLogoutButton() {
+// Hàm đăng xuất
+// redirectPath: Đường dẫn sẽ chuyển về sau khi logout (Mặc định là index.html)
+export function setupLogoutButton(redirectPath = 'index.html') {
     const btn = document.getElementById('btn-logout');
     if (btn) {
         btn.addEventListener('click', async () => {
             await signOut(auth);
-            window.location.href = 'index.html'; // Về trang chủ sau khi thoát
+            window.location.href = redirectPath;
         });
     }
 }
 
-// Hàm lấy thông tin quyền hạn (Role) của user từ Firestore
 export async function getUserRole(uid) {
     try {
         const docRef = doc(db, 'users', uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return docSnap.data().role; // 'admin' hoặc 'member'
+            return docSnap.data().role; 
         }
-    } catch (e) {
-        console.error("Lỗi lấy quyền:", e);
-    }
+    } catch (e) { console.error(e); }
     return 'guest';
 }
 
-// Hàm bảo vệ trang con (Dùng cho articles.html...)
-// Nếu chưa đăng nhập -> Đá về index.html
-export function requireAuth(callback) {
+// Hàm bảo vệ trang
+// failRedirectPath: Đường dẫn sẽ đá về nếu chưa đăng nhập (Ví dụ: ../index.html)
+export function requireAuth(callback, failRedirectPath = 'index.html') {
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
-            // Chưa đăng nhập, chuyển hướng về trang chủ
-            window.location.href = 'index.html';
+            window.location.href = failRedirectPath;
         } else {
-            // Đã đăng nhập, kiểm tra domain lần nữa cho chắc
             if (!user.email.endsWith('@dhhp.edu.vn')) {
                 await signOut(auth);
                 alert("Email không hợp lệ!");
-                window.location.href = 'index.html';
+                window.location.href = failRedirectPath;
                 return;
             }
-            // Gọi callback để chạy logic của trang đó
             const role = await getUserRole(user.uid);
             callback(user, role);
         }
