@@ -14,12 +14,21 @@
         <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md w-full border border-gray-200">
             <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Logo_Đại_học_Hải_Phòng.png" alt="Logo" class="h-24 mx-auto mb-4 object-contain">
             <h2 class="text-2xl font-bold text-blue-900 mb-2">Hệ Thống Quản Lý Khoa Học</h2>
-            <p class="text-gray-600 mb-8 text-sm">Đăng nhập bằng Email nhà trường <b>(@dhhp.edu.vn)</b></p>
+            
+            <!-- ĐÃ SỬA: Câu thông báo chung chung hơn -->
+            <p class="text-gray-600 mb-8 text-sm">Đăng nhập bằng tài khoản Google để tiếp tục.</p>
+            
             <button id="btn-google-login" class="w-full flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-sm transition">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6 mr-3">
-                Đăng nhập / Đăng ký
+                Đăng nhập với Google
             </button>
-            <p class="text-xs text-gray-400 mt-2">Tài khoản mới sẽ cần Admin phê duyệt trước khi sử dụng.</p>
+            
+            <!-- Ghi chú về quy trình duyệt -->
+            <div class="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded border border-gray-200">
+                <i class="fas fa-info-circle mr-1"></i> 
+                Tài khoản mới đăng ký sẽ ở trạng thái <b>Chờ duyệt</b> và cần Admin cấp quyền trước khi sử dụng.
+            </div>
+
             <p id="login-error" class="text-red-500 text-sm mt-4 hidden"></p>
         </div>
     </div>
@@ -48,16 +57,20 @@
 
         <main class="flex-grow container mx-auto px-6 py-10">
             <!-- Thông báo chờ duyệt -->
-            <div id="pending-warning" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
-                <p class="font-bold">Tài khoản đang chờ phê duyệt</p>
-                <p>Bạn đã đăng ký thành công. Vui lòng liên hệ Quản trị viên để được cấp quyền truy cập vào các chức năng.</p>
+            <div id="pending-warning" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 shadow-sm" role="alert">
+                <div class="flex items-center">
+                    <i class="fas fa-user-clock text-2xl mr-4"></i>
+                    <div>
+                        <p class="font-bold text-lg">Tài khoản đang chờ phê duyệt</p>
+                        <p>Chào mừng bạn! Vui lòng liên hệ Quản trị viên để được kích hoạt tài khoản và phân quyền truy cập.</p>
+                    </div>
+                </div>
             </div>
 
             <h2 class="text-2xl font-bold text-gray-800 mb-6 border-l-4 border-blue-600 pl-3">Các Hệ Thống Quản Lý</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                <!-- MODULE 1: BÀI BÁO KHOA HỌC (Có ID để JS can thiệp ẩn/hiện) -->
                 <a id="module-articles" href="articles/" class="block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group">
                     <div class="bg-blue-600 h-2 group-hover:bg-blue-500 transition"></div>
                     <div class="p-6">
@@ -69,8 +82,6 @@
                     </div>
                 </a>
 
-                <!-- MODULE ADMIN: Chỉ hiện nếu là Admin -->
-                <!-- SỬA: Link tới trang quản lý Admin -->
                 <a href="admin/" id="admin-module" class="hidden block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden border-2 border-purple-100">
                     <div class="bg-purple-600 h-2"></div>
                     <div class="p-6">

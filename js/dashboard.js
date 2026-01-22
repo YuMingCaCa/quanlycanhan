@@ -8,7 +8,7 @@ const dashboardUi = document.getElementById('dashboard-ui');
 const loginError = document.getElementById('login-error');
 const btnLogin = document.getElementById('btn-google-login');
 
-// XỬ LÝ ĐĂNG NHẬP / ĐĂNG KÝ
+// XỬ LÝ ĐĂNG NHẬP
 btnLogin.addEventListener('click', async () => {
     loginError.classList.add('hidden');
     try {
@@ -21,11 +21,8 @@ btnLogin.addEventListener('click', async () => {
 });
 
 async function handleUserCheck(user) {
-    if (!user.email.endsWith('@dhhp.edu.vn')) {
-        await signOut(auth);
-        alert("Chỉ chấp nhận email @dhhp.edu.vn");
-        return;
-    }
+    // ĐÃ XÓA: Kiểm tra domain @dhhp.edu.vn
+    // Chấp nhận mọi tài khoản Google
 
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
@@ -34,17 +31,17 @@ async function handleUserCheck(user) {
     if (userSnap.exists()) {
         userData = userSnap.data();
     } else {
-        // --- LOGIC MỚI: Người đầu tiên là Admin, người sau là 'pending' (Chờ duyệt) ---
+        // User mới tinh -> Kiểm tra xem có ai là Admin chưa?
         const qAdmin = query(collection(db, 'users'), where("role", "==", "admin"));
         const adminSnaps = await getDocs(qAdmin);
         
-        const initialRole = adminSnaps.empty ? 'admin' : 'pending'; // Mặc định là chờ duyệt
+        // Nếu chưa có ai -> Admin. Nếu có rồi -> Pending (Chờ duyệt)
+        const initialRole = adminSnaps.empty ? 'admin' : 'pending'; 
         
         userData = {
             email: user.email,
             displayName: user.displayName,
             role: initialRole,
-            // Các quyền mặc định (false hết nếu là pending)
             permissions: {
                 can_access_articles: initialRole === 'admin',
                 view_all_articles: initialRole === 'admin',
@@ -66,38 +63,35 @@ function showDashboard(user, userData) {
 
     document.getElementById('user-name').textContent = user.displayName;
     
-    // --- HIỂN THỊ TRẠNG THÁI ---
     const roleBadge = document.getElementById('user-role');
     const warningBox = document.getElementById('pending-warning');
     const moduleArticles = document.getElementById('module-articles');
     const moduleAdmin = document.getElementById('admin-module');
 
-    // Reset giao diện
     warningBox.classList.add('hidden');
     moduleArticles.classList.remove('opacity-50', 'pointer-events-none');
     moduleAdmin.classList.add('hidden');
 
+    // Hiển thị giao diện theo quyền
     if (userData.role === 'admin') {
         roleBadge.textContent = 'Quản trị viên';
         roleBadge.className = 'text-xs bg-red-600 px-2 py-0.5 rounded inline-block text-white';
-        moduleAdmin.classList.remove('hidden'); // Hiện nút quản lý User
+        moduleAdmin.classList.remove('hidden');
     } 
     else if (userData.role === 'pending') {
         roleBadge.textContent = 'Chờ duyệt';
         roleBadge.className = 'text-xs bg-yellow-500 px-2 py-0.5 rounded inline-block text-white';
         
-        // Hiện thông báo chờ
+        // Hiện cảnh báo và khóa chức năng
         warningBox.classList.remove('hidden');
-        
-        // Vô hiệu hóa các module
         moduleArticles.classList.add('opacity-50', 'pointer-events-none');
     } 
     else {
-        // User bình thường (đã được duyệt)
-        roleBadge.textContent = 'Giảng viên';
+        // Đã duyệt (Giảng viên/Khách...)
+        roleBadge.textContent = 'Thành viên';
         roleBadge.className = 'text-xs bg-blue-600 px-2 py-0.5 rounded inline-block text-white';
         
-        // Kiểm tra quyền vào module bài báo
+        // Kiểm tra quyền vào module cụ thể
         if (!userData.permissions?.can_access_articles) {
             moduleArticles.classList.add('opacity-50', 'pointer-events-none');
         }
@@ -108,10 +102,13 @@ function showDashboard(user, userData) {
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        // Lấy lại data mới nhất từ DB để đảm bảo quyền đúng
+        // Lấy thông tin mới nhất từ DB để đảm bảo quyền đúng (ví dụ vừa được admin duyệt xong)
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) {
             showDashboard(user, snap.data());
+        } else {
+            // Trường hợp user xóa trong DB nhưng auth vẫn còn lưu
+            handleUserCheck(user);
         }
     } else {
         loginOverlay.style.display = 'flex';
