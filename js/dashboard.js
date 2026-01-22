@@ -1,14 +1,13 @@
 import { auth, provider, db } from './firebase-config.js';
 import { signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { doc, getDoc, setDoc, query, where, getDocs, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { setupLogoutButton, getUserRole } from './common.js';
+import { setupLogoutButton, DEFAULT_ROLES, hasPermission } from './common.js';
 
 const loginOverlay = document.getElementById('login-overlay');
 const dashboardUi = document.getElementById('dashboard-ui');
 const loginError = document.getElementById('login-error');
 const btnLogin = document.getElementById('btn-google-login');
 
-// XỬ LÝ ĐĂNG NHẬP
 btnLogin.addEventListener('click', async () => {
     loginError.classList.add('hidden');
     try {
@@ -21,9 +20,6 @@ btnLogin.addEventListener('click', async () => {
 });
 
 async function handleUserCheck(user) {
-    // ĐÃ XÓA: Kiểm tra domain @dhhp.edu.vn
-    // Chấp nhận mọi tài khoản Google
-
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
     let userData = null;
@@ -31,21 +27,24 @@ async function handleUserCheck(user) {
     if (userSnap.exists()) {
         userData = userSnap.data();
     } else {
-        // User mới tinh -> Kiểm tra xem có ai là Admin chưa?
-        const qAdmin = query(collection(db, 'users'), where("role", "==", "admin"));
-        const adminSnaps = await getDocs(qAdmin);
+        // Kiểm tra xem đã có Super Admin chưa?
+        const qSuper = query(collection(db, 'users'), where("role", "==", "super_admin"));
+        const superSnaps = await getDocs(qSuper);
         
-        // Nếu chưa có ai -> Admin. Nếu có rồi -> Pending (Chờ duyệt)
-        const initialRole = adminSnaps.empty ? 'admin' : 'pending'; 
-        
+        let initialRole = 'pending';
+        // Nếu chưa có ai -> Người đầu tiên là Super Admin
+        if (superSnaps.empty) {
+            initialRole = 'super_admin';
+        }
+
         userData = {
             email: user.email,
             displayName: user.displayName,
             role: initialRole,
+            // Cấu trúc Permission mới: Theo từng Module
             permissions: {
-                can_access_articles: initialRole === 'admin',
-                view_all_articles: initialRole === 'admin',
-                can_create_article: initialRole === 'admin'
+                articles: { access: initialRole === 'super_admin', view_all: initialRole === 'super_admin', create: initialRole === 'super_admin' },
+                admin: { access: initialRole === 'super_admin' } // Quyền vào trang quản trị
             },
             createdAt: Date.now()
         };
@@ -63,38 +62,38 @@ function showDashboard(user, userData) {
 
     document.getElementById('user-name').textContent = user.displayName;
     
+    // Hiển thị Role Badge
+    const roleInfo = DEFAULT_ROLES[userData.role] || DEFAULT_ROLES['member'];
     const roleBadge = document.getElementById('user-role');
+    roleBadge.textContent = roleInfo.label;
+    roleBadge.className = `text-xs bg-${roleInfo.color} px-2 py-0.5 rounded inline-block text-white`;
+
     const warningBox = document.getElementById('pending-warning');
     const moduleArticles = document.getElementById('module-articles');
     const moduleAdmin = document.getElementById('admin-module');
 
+    // Reset UI
     warningBox.classList.add('hidden');
     moduleArticles.classList.remove('opacity-50', 'pointer-events-none');
-    moduleAdmin.classList.add('hidden');
+    moduleAdmin.classList.add('hidden'); // Mặc định ẩn Admin
 
-    // Hiển thị giao diện theo quyền
-    if (userData.role === 'admin') {
-        roleBadge.textContent = 'Quản trị viên';
-        roleBadge.className = 'text-xs bg-red-600 px-2 py-0.5 rounded inline-block text-white';
-        moduleAdmin.classList.remove('hidden');
-    } 
-    else if (userData.role === 'pending') {
-        roleBadge.textContent = 'Chờ duyệt';
-        roleBadge.className = 'text-xs bg-yellow-500 px-2 py-0.5 rounded inline-block text-white';
-        
-        // Hiện cảnh báo và khóa chức năng
+    // 1. Nếu là Pending -> Hiện cảnh báo, khóa hết
+    if (userData.role === 'pending') {
         warningBox.classList.remove('hidden');
         moduleArticles.classList.add('opacity-50', 'pointer-events-none');
-    } 
-    else {
-        // Đã duyệt (Giảng viên/Khách...)
-        roleBadge.textContent = 'Thành viên';
-        roleBadge.className = 'text-xs bg-blue-600 px-2 py-0.5 rounded inline-block text-white';
-        
-        // Kiểm tra quyền vào module cụ thể
-        if (!userData.permissions?.can_access_articles) {
-            moduleArticles.classList.add('opacity-50', 'pointer-events-none');
-        }
+        return; // Dừng, không check tiếp
+    }
+
+    // 2. Check quyền Module Bài Báo
+    // Super Admin luôn có quyền (hoặc check permission cũng được vì super admin luôn full)
+    if (userData.role !== 'super_admin' && !hasPermission(userData.permissions, 'articles', 'access')) {
+        moduleArticles.classList.add('opacity-50', 'pointer-events-none');
+    }
+
+    // 3. Check quyền Module Admin
+    // Chỉ Super Admin hoặc Admin được cấp quyền mới thấy
+    if (userData.role === 'super_admin' || hasPermission(userData.permissions, 'admin', 'access')) {
+        moduleAdmin.classList.remove('hidden');
     }
 
     setupLogoutButton();
@@ -102,12 +101,10 @@ function showDashboard(user, userData) {
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        // Lấy thông tin mới nhất từ DB để đảm bảo quyền đúng (ví dụ vừa được admin duyệt xong)
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) {
             showDashboard(user, snap.data());
         } else {
-            // Trường hợp user xóa trong DB nhưng auth vẫn còn lưu
             handleUserCheck(user);
         }
     } else {

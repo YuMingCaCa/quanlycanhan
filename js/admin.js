@@ -1,10 +1,17 @@
 import { db } from './firebase-config.js';
-import { collection, getDocs, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { requireAuth, setupLogoutButton } from './common.js';
+import { collection, getDocs, doc, updateDoc, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { requireAuth, setupLogoutButton, DEFAULT_ROLES } from './common.js';
 
-requireAuth(async (user, role) => {
-    if (role !== 'admin') {
-        alert("Bạn không có quyền truy cập trang này!");
+let currentUserData = null;
+
+requireAuth(async (user, userData) => {
+    currentUserData = userData;
+    
+    // Bảo vệ trang: Chỉ Super Admin hoặc người có quyền 'admin.access' mới được vào
+    const canAccess = userData.role === 'super_admin' || (userData.permissions && userData.permissions.admin && userData.permissions.admin.access);
+    
+    if (!canAccess) {
+        alert("Bạn không có quyền truy cập trang quản trị!");
         window.location.href = '../';
         return;
     }
@@ -21,7 +28,6 @@ async function loadUsers() {
     const tbody = document.getElementById('user-table-body');
     tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>';
     
-    // Lấy tất cả user
     const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     
@@ -36,18 +42,24 @@ function renderUserRow(u, tbody) {
     const tr = document.createElement('tr');
     tr.className = "border-b hover:bg-gray-50";
     
-    // Mặc định permissions nếu chưa có
-    const perms = u.permissions || { can_access_articles: false, view_all_articles: false, can_create_article: false };
+    // Xử lý permissions mặc định nếu thiếu
+    const perms = u.permissions || {};
+    const artPerms = perms.articles || { access: false, view_all: false, create: false };
+    const adminPerms = perms.admin || { access: false };
 
-    // Tạo Role Label
-    let roleBadge = '';
-    if (u.role === 'admin') roleBadge = '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">Admin</span>';
-    else if (u.role === 'pending') roleBadge = '<span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Chờ duyệt</span>';
-    else roleBadge = '<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">Giảng viên</span>';
+    // Role Label
+    const roleInfo = DEFAULT_ROLES[u.role] || DEFAULT_ROLES['member'];
+    const roleBadge = `<span class="bg-${roleInfo.color} text-white px-2 py-1 rounded text-xs">${roleInfo.label}</span>`;
 
-    // Disable checkboxes nếu là admin (Admin luôn full quyền)
-    const disabled = u.role === 'admin' ? 'disabled checked' : '';
-    const isPending = u.role === 'pending';
+    // Logic Disable:
+    // - Không ai được sửa Super Admin (trừ chính họ - nhưng thường cũng chặn luôn cho an toàn)
+    // - Admin thường không được sửa Admin khác hoặc Super Admin
+    let isDisabled = false;
+    if (u.role === 'super_admin') isDisabled = true;
+    if (currentUserData.role !== 'super_admin' && u.role === 'admin') isDisabled = true; 
+
+    // Nút Xóa: Chỉ Super Admin mới xóa được Admin/Member
+    const showDelete = currentUserData.role === 'super_admin' && u.role !== 'super_admin';
 
     tr.innerHTML = `
         <td class="px-4 py-3">
@@ -56,72 +68,81 @@ function renderUserRow(u, tbody) {
         </td>
         <td class="px-4 py-3 text-center">${roleBadge}</td>
         
-        <!-- Checkbox Quyền -->
-        <td class="px-4 py-3 text-center bg-blue-50/50">
-            <input type="checkbox" ${perms.can_access_articles ? 'checked' : ''} ${disabled} 
-                onchange="window.updatePerm('${u.id}', 'can_access_articles', this.checked)" class="h-4 w-4 text-blue-600 rounded">
+        <!-- Module Bài Báo -->
+        <td class="px-4 py-3 text-center border-l bg-blue-50/30">
+            <label class="block text-xs text-gray-500">Truy cập</label>
+            <input type="checkbox" ${artPerms.access ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} 
+                onchange="window.updateModulePerm('${u.id}', 'articles', 'access', this.checked)">
         </td>
-        <td class="px-4 py-3 text-center bg-blue-50/50">
-            <input type="checkbox" ${perms.view_all_articles ? 'checked' : ''} ${disabled} 
-                onchange="window.updatePerm('${u.id}', 'view_all_articles', this.checked)" class="h-4 w-4 text-blue-600 rounded">
+        <td class="px-4 py-3 text-center bg-blue-50/30">
+            <label class="block text-xs text-gray-500">Xem tất cả</label>
+            <input type="checkbox" ${artPerms.view_all ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} 
+                onchange="window.updateModulePerm('${u.id}', 'articles', 'view_all', this.checked)">
         </td>
-        <td class="px-4 py-3 text-center bg-blue-50/50">
-            <input type="checkbox" ${perms.can_create_article ? 'checked' : ''} ${disabled} 
-                onchange="window.updatePerm('${u.id}', 'can_create_article', this.checked)" class="h-4 w-4 text-blue-600 rounded">
+        <td class="px-4 py-3 text-center bg-blue-50/30 border-r">
+            <label class="block text-xs text-gray-500">Đăng bài</label>
+            <input type="checkbox" ${artPerms.create ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} 
+                onchange="window.updateModulePerm('${u.id}', 'articles', 'create', this.checked)">
+        </td>
+
+        <!-- Module Admin (Quyền quản trị) -->
+        <td class="px-4 py-3 text-center bg-purple-50/30">
+            <label class="block text-xs text-gray-500">Vào trang này</label>
+            <input type="checkbox" ${adminPerms.access ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} 
+                onchange="window.updateModulePerm('${u.id}', 'admin', 'access', this.checked)">
         </td>
 
         <!-- Hành động -->
         <td class="px-4 py-3 text-center">
-            ${isPending ? `
-                <button onclick="window.approveUser('${u.id}')" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">
+            ${u.role === 'pending' ? `
+                <button onclick="window.approveUser('${u.id}')" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 block w-full mb-1">
                     <i class="fas fa-check mr-1"></i> Duyệt
                 </button>
             ` : ''}
-            ${!isPending && u.role !== 'admin' ? `
-                <button onclick="window.setAdmin('${u.id}')" class="text-xs text-purple-600 underline hover:text-purple-800">Thăng Admin</button>
+            
+            ${showDelete ? `
+                <button onclick="window.removeUser('${u.id}')" class="text-red-500 hover:text-red-700 text-xs" title="Xóa tài khoản">
+                    <i class="fas fa-trash"></i>
+                </button>
             ` : ''}
         </td>
     `;
     tbody.appendChild(tr);
 }
 
-// Hàm global để gọi từ HTML
-window.updatePerm = async (uid, key, value) => {
-    // Cập nhật trường permissions.key trong Firestore
-    // Cú pháp update nested object: "permissions.key": value
+// Cập nhật Permission lồng nhau (articles.access, admin.access...)
+window.updateModulePerm = async (uid, module, action, value) => {
+    // Firestore update nested fields: "permissions.articles.access": true
+    const fieldPath = `permissions.${module}.${action}`;
     const updateData = {};
-    updateData[`permissions.${key}`] = value;
+    updateData[fieldPath] = value;
     
     try {
         await updateDoc(doc(db, 'users', uid), updateData);
-        // Không cần reload, checkbox đã đổi trạng thái
     } catch (e) {
-        alert("Lỗi cập nhật: " + e.message);
+        alert("Lỗi: " + e.message);
+        loadUsers(); // Revert UI nếu lỗi
     }
 };
 
 window.approveUser = async (uid) => {
-    if(confirm("Duyệt thành viên này? Họ sẽ được cấp quyền truy cập cơ bản.")) {
+    if(confirm("Duyệt thành viên này? Họ sẽ thành 'Member' và có quyền cơ bản.")) {
         await updateDoc(doc(db, 'users', uid), {
             role: 'member',
-            // Cấp quyền mặc định khi duyệt
             permissions: {
-                can_access_articles: true,
-                view_all_articles: false, // Mặc định chỉ xem bài mình
-                can_create_article: true  // Mặc định được đăng bài
+                articles: { access: true, view_all: false, create: true }, // Mặc định vào được bài báo, đăng được, nhưng chỉ xem bài mình
+                admin: { access: false }
             }
         });
         loadUsers();
     }
 };
 
-window.setAdmin = async (uid) => {
-    if(confirm("CẢNH BÁO: Bạn có chắc chắn muốn thăng cấp người này làm Admin không?")) {
-        await updateDoc(doc(db, 'users', uid), {
-            role: 'admin',
-            // Admin full quyền
-            permissions: { can_access_articles: true, view_all_articles: true, can_create_article: true }
-        });
-        loadUsers();
+window.removeUser = async (uid) => {
+    if(confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa hoàn toàn user này khỏi hệ thống?")) {
+        try {
+            await deleteDoc(doc(db, 'users', uid));
+            loadUsers();
+        } catch (e) { alert("Lỗi xóa: " + e.message); }
     }
 };
