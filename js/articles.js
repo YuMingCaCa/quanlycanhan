@@ -79,7 +79,6 @@ function updateUserFilterOptions() {
     const select = document.getElementById('filter-user');
     const currentVal = select.value;
     
-    // Lấy danh sách email duy nhất từ các bài báo
     const uniqueEmails = [...new Set(allArticles.map(item => item.createdEmail || "Không rõ"))];
     
     let html = '<option value="all">Tất cả tài khoản</option>';
@@ -90,7 +89,7 @@ function updateUserFilterOptions() {
     });
     
     select.innerHTML = html;
-    select.value = currentVal; // Giữ lại lựa chọn cũ nếu đang chọn
+    select.value = currentVal;
 }
 
 // --- VẼ BẢNG & LỌC DỮ LIỆU ---
@@ -105,7 +104,8 @@ function renderTable() {
     // Lọc dữ liệu
     const filteredData = allArticles.filter(item => {
         const matchesSearch = (item.tenBai || '').toLowerCase().includes(searchTerm) || 
-                              (item.tacGia || '').toLowerCase().includes(searchTerm);
+                              (item.tacGia || '').toLowerCase().includes(searchTerm) ||
+                              (item.ghiChu || '').toLowerCase().includes(searchTerm); // Cho phép tìm kiếm cả trong ghi chú
         
         const matchesUser = filterUser === 'all' || item.createdEmail === filterUser;
 
@@ -123,7 +123,7 @@ function renderTable() {
 function renderRow(item, index, tbody) {
     const tr = document.createElement('tr');
     tr.className = "border-b hover:bg-gray-50 transition";
-    tr.dataset.id = item.id; // Đánh dấu ID để dễ tìm khi in
+    tr.dataset.id = item.id; 
 
     let canEdit = false;
     if (item.createdBy === currentUser.uid && hasPermission(userPerms, 'articles', 'create')) canEdit = true;
@@ -134,12 +134,18 @@ function renderRow(item, index, tbody) {
         <button class="text-red-600 hover:text-red-800" onclick="deleteItem('${item.id}')"><i class="fas fa-trash"></i></button>
     ` : '<span class="text-gray-300">--</span>';
 
+    // Hiển thị ghi chú nhỏ bên dưới tên bài báo (nếu có)
+    const noteHtml = item.ghiChu ? `<div class="text-xs text-gray-500 mt-1"><i class="fas fa-info-circle mr-1"></i>${item.ghiChu}</div>` : '';
+
     tr.innerHTML = `
         <td class="text-center py-3">
             <input type="checkbox" class="select-row w-4 h-4 text-blue-600 rounded cursor-pointer" value="${item.id}">
         </td>
         <td class="text-center py-3 text-gray-500">${index}</td>
-        <td class="px-4 py-3 font-semibold text-blue-900">${item.tenBai}</td>
+        <td class="px-4 py-3 font-semibold text-blue-900">
+            ${item.tenBai}
+            ${noteHtml}
+        </td>
         <td class="px-4 py-3 italic text-gray-600">${item.tacGia}</td>
         <td class="px-4 py-3 text-sm">${item.noiCongBo}</td>
         <td class="text-center"><span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs truncate max-w-[150px] inline-block" title="${item.danhMuc}">${item.danhMuc}</span></td>
@@ -152,7 +158,6 @@ function renderRow(item, index, tbody) {
 document.getElementById('search-input').addEventListener('keyup', renderTable);
 document.getElementById('filter-user').addEventListener('change', renderTable);
 
-// Chọn tất cả
 document.getElementById('select-all').addEventListener('change', (e) => {
     document.querySelectorAll('.select-row').forEach(cb => cb.checked = e.target.checked);
 });
@@ -164,33 +169,25 @@ window.togglePreview = () => {
     const printBody = document.getElementById('print-table-body');
     
     if (p.classList.contains('preview-mode')) {
-        // Tắt in
         p.classList.remove('preview-mode');
         m.classList.remove('hidden'); m.classList.add('flex');
     } else {
-        // Bật in -> Xử lý dữ liệu in
-        
-        // 1. Tìm các bài được tích chọn
         const checkedIds = Array.from(document.querySelectorAll('.select-row:checked')).map(cb => cb.value);
-        
-        // 2. Lấy danh sách bài để in
         let itemsToPrint = [];
         if (checkedIds.length > 0) {
-            // Nếu có tích chọn -> Chỉ in bài đã chọn
             itemsToPrint = allArticles.filter(item => checkedIds.includes(item.id));
         } else {
-            // Nếu không tích gì -> In danh sách đang hiển thị (đã qua lọc)
-            // Lấy lại logic lọc giống hệt renderTable
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
             const filterUser = document.getElementById('filter-user').value;
             itemsToPrint = allArticles.filter(item => {
-                const matchesSearch = (item.tenBai || '').toLowerCase().includes(searchTerm) || (item.tacGia || '').toLowerCase().includes(searchTerm);
+                const matchesSearch = (item.tenBai || '').toLowerCase().includes(searchTerm) || 
+                                      (item.tacGia || '').toLowerCase().includes(searchTerm) ||
+                                      (item.ghiChu || '').toLowerCase().includes(searchTerm);
                 const matchesUser = filterUser === 'all' || item.createdEmail === filterUser;
                 return matchesSearch && matchesUser;
             });
         }
 
-        // 3. Render bảng in
         printBody.innerHTML = '';
         if (itemsToPrint.length === 0) {
             alert("Không có bài báo nào để in!");
@@ -199,6 +196,9 @@ window.togglePreview = () => {
 
         let index = 1;
         itemsToPrint.forEach(item => {
+            // Hiển thị ghi chú trong bảng in (nếu có)
+            const notePrint = item.ghiChu ? `<br><span style="font-style: italic; font-size: 0.9em; color: #555;">(Ghi chú: ${item.ghiChu})</span>` : '';
+
             printBody.insertAdjacentHTML('beforeend', `
                 <tr>
                     <td style="text-align:center">${index++}</td>
@@ -206,13 +206,13 @@ window.togglePreview = () => {
                     <td>${item.tacGia}</td>
                     <td>${item.noiCongBo}</td>
                     <td style="text-align:center">${item.danhMuc}</td>
+                    <td>${item.ghiChu || ''}</td>
                 </tr>
             `);
         });
         
-        // Thêm dòng trống cho đẹp
         while(index <= 5) {
-             printBody.insertAdjacentHTML('beforeend', '<tr><td></td><td></td><td></td><td></td><td></td></tr>');
+             printBody.insertAdjacentHTML('beforeend', '<tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>');
              index++;
         }
 
@@ -236,6 +236,8 @@ window.openModal = (id = null) => {
             document.getElementById('tac-gia').value = item.tacGia;
             document.getElementById('noi-cong-bo').value = item.noiCongBo;
             document.getElementById('danh-muc').value = item.danhMuc;
+            // Load ghi chú lên form
+            document.getElementById('ghi-chu').value = item.ghiChu || '';
             document.getElementById('modal-title').textContent = "Cập Nhật";
         }
     }
@@ -250,6 +252,8 @@ document.getElementById('form-article').addEventListener('submit', async (e) => 
         tacGia: document.getElementById('tac-gia').value,
         noiCongBo: document.getElementById('noi-cong-bo').value,
         danhMuc: document.getElementById('danh-muc').value,
+        // Lưu trường ghi chú mới
+        ghiChu: document.getElementById('ghi-chu').value,
         updatedAt: Date.now(),
         createdBy: currentUser.uid, 
         createdEmail: currentUser.email 

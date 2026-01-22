@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjTnSBGofmGpcMY_uEoXhgAB-FeeLjVslu1A&s">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Bài Báo - ĐH Hải Phòng</title>
@@ -106,7 +105,7 @@
         </div>
         <br>
         <table class="print-table">
-            <thead><tr><th style="width:5%">TT</th><th style="width:30%">Tên bài báo</th><th style="width:20%">Tác giả</th><th style="width:30%">Nơi công bố</th><th style="width:15%">Danh mục</th></tr></thead>
+            <thead><tr><th style="width:5%">TT</th><th style="width:30%">Tên bài báo</th><th style="width:20%">Tác giả</th><th style="width:25%">Nơi công bố</th><th style="width:10%">Danh mục</th><th style="width:10%">Ghi chú</th></tr></thead>
             <tbody id="print-table-body"></tbody>
         </table>
         <br><br>
@@ -118,7 +117,7 @@
 
     <!-- MODAL FORM -->
     <div id="article-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 m-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 m-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h3 id="modal-title" class="text-xl font-bold">Thêm Mới</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
@@ -162,6 +161,12 @@
                             <option value="Khác">Khác</option>
                         </optgroup>
                     </select>
+                </div>
+
+                <!-- THÊM PHẦN GHI CHÚ TẠI ĐÂY -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Ghi chú (Tùy chọn)</label>
+                    <textarea id="ghi-chu" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" rows="2" placeholder="Ví dụ: Link bài viết, Tình trạng phản biện, v.v..."></textarea>
                 </div>
 
                 <div class="flex justify-end pt-4 gap-2">
