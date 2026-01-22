@@ -26,7 +26,7 @@ requireAuth(async (user, userData) => {
 
 async function loadUsers() {
     const tbody = document.getElementById('user-table-body');
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4">Đang tải...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4">Đang tải...</td></tr>';
     
     const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
@@ -44,7 +44,8 @@ function renderUserRow(u, tbody) {
     
     // Xử lý permissions mặc định nếu thiếu
     const perms = u.permissions || {};
-    const artPerms = perms.articles || { access: false, view_all: false, create: false };
+    // Thêm quyền manage_others (Sửa xóa bài người khác)
+    const artPerms = perms.articles || { access: false, view_all: false, create: false, manage_others: false };
     const adminPerms = perms.admin || { access: false };
 
     // Role Label
@@ -52,13 +53,11 @@ function renderUserRow(u, tbody) {
     const roleBadge = `<span class="bg-${roleInfo.color} text-white px-2 py-1 rounded text-xs">${roleInfo.label}</span>`;
 
     // Logic Disable:
-    // - Không ai được sửa Super Admin (trừ chính họ - nhưng thường cũng chặn luôn cho an toàn)
-    // - Admin thường không được sửa Admin khác hoặc Super Admin
     let isDisabled = false;
     if (u.role === 'super_admin') isDisabled = true;
     if (currentUserData.role !== 'super_admin' && u.role === 'admin') isDisabled = true; 
 
-    // Nút Xóa: Chỉ Super Admin mới xóa được Admin/Member
+    // Nút Xóa
     const showDelete = currentUserData.role === 'super_admin' && u.role !== 'super_admin';
 
     tr.innerHTML = `
@@ -79,10 +78,15 @@ function renderUserRow(u, tbody) {
             <input type="checkbox" ${artPerms.view_all ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} 
                 onchange="window.updateModulePerm('${u.id}', 'articles', 'view_all', this.checked)">
         </td>
-        <td class="px-4 py-3 text-center bg-blue-50/30 border-r">
+        <td class="px-4 py-3 text-center bg-blue-50/30">
             <label class="block text-xs text-gray-500">Đăng bài</label>
             <input type="checkbox" ${artPerms.create ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} 
                 onchange="window.updateModulePerm('${u.id}', 'articles', 'create', this.checked)">
+        </td>
+        <td class="px-4 py-3 text-center bg-blue-50/30 border-r">
+            <label class="block text-xs text-gray-500 font-bold text-red-600">Sửa/Xóa All</label>
+            <input type="checkbox" ${artPerms.manage_others ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} 
+                onchange="window.updateModulePerm('${u.id}', 'articles', 'manage_others', this.checked)">
         </td>
 
         <!-- Module Admin (Quyền quản trị) -->
@@ -130,7 +134,7 @@ window.approveUser = async (uid) => {
         await updateDoc(doc(db, 'users', uid), {
             role: 'member',
             permissions: {
-                articles: { access: true, view_all: false, create: true }, // Mặc định vào được bài báo, đăng được, nhưng chỉ xem bài mình
+                articles: { access: true, view_all: false, create: true, manage_others: false }, 
                 admin: { access: false }
             }
         });
