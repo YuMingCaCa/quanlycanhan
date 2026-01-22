@@ -1,37 +1,68 @@
 import { db } from './firebase-config.js';
-import { collection, addDoc, doc, updateDoc, deleteDoc, query, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-// Import file common (Do cả 2 file js đều nằm cùng thư mục js/ nên đường dẫn import giữ nguyên)
+import { collection, addDoc, doc, updateDoc, deleteDoc, query, onSnapshot, orderBy, where, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { requireAuth, setupLogoutButton } from './common.js';
 
 let currentUser = null;
-let currentRole = 'guest';
+let currentPermissions = {};
+let currentRole = 'guest'; // Thêm biến này để lưu role
 
-// --- QUAN TRỌNG: Cấu hình đường dẫn lùi về trang chủ ---
-const HOME_PATH = '../index.html'; 
+const HOME_PATH = '../'; 
 
-requireAuth((user, role) => {
-    currentUser = user;
-    currentRole = role;
+requireAuth(async (user, role) => {
+    // Lấy thông tin chi tiết user từ DB
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    const userData = snap.data();
     
+    // Kiểm tra quyền truy cập Module
+    // (Admin luôn được vào, kể cả khi chưa có permissions)
+    if (role !== 'admin') {
+        if (userData.role === 'pending' || (userData.permissions && !userData.permissions.can_access_articles)) {
+            alert("Bạn không có quyền truy cập module này.");
+            window.location.href = HOME_PATH;
+            return;
+        }
+    }
+
+    currentUser = user;
+    currentRole = role; // Lưu role lại dùng sau này
+
+    // --- SỬA LỖI QUAN TRỌNG TẠI ĐÂY ---
+    // Nếu là Admin: Tự động gán Full Quyền (Bất chấp DB có lưu permissions hay không)
+    if (role === 'admin') {
+        currentPermissions = {
+            can_access_articles: true,
+            view_all_articles: true, 
+            can_create_article: true
+        };
+    } else {
+        // Nếu là user thường thì dùng quyền trong DB
+        currentPermissions = userData.permissions || {}; 
+    }
+    // ----------------------------------
+
     document.getElementById('auth-loading').classList.add('hidden');
     document.getElementById('main-app').classList.remove('hidden');
     document.getElementById('main-app').classList.add('flex');
 
     document.getElementById('user-display').textContent = user.email;
-    
-    // Khi logout hoặc chưa login thì lùi về HOME_PATH
     setupLogoutButton(HOME_PATH);
     
-    setupUIByRole();
+    setupUIByPermissions(); 
     loadData();
-}, HOME_PATH); // Tham số thứ 2 là nơi chuyển về nếu chưa đăng nhập
+}, HOME_PATH);
 
-// --- (Các phần logic dưới giữ nguyên như cũ) ---
-function setupUIByRole() {
+function setupUIByPermissions() {
     document.getElementById('print-name').textContent = (currentUser.displayName || "").toUpperCase();
     document.getElementById('print-email').textContent = currentUser.email;
-    document.getElementById('print-signer').textContent = currentUser.displayName;
-    document.getElementById('btn-add').classList.remove('hidden');
+    
+    // Nút thêm mới
+    if (currentPermissions.can_create_article) {
+        document.getElementById('btn-add').classList.remove('hidden');
+    } else {
+        document.getElementById('btn-add').classList.add('hidden');
+    }
+
+    // Cột thao tác: Admin hoặc người có quyền sửa (tùy logic mở rộng)
     if (currentRole === 'admin') {
         document.querySelectorAll('.action-col').forEach(el => el.classList.remove('hidden'));
     }
@@ -40,7 +71,17 @@ function setupUIByRole() {
 const getRef = () => collection(db, 'articles');
 
 function loadData() {
-    const q = query(getRef(), orderBy("createdAt", "desc"));
+    let q;
+    
+    // Vì Admin đã được ép quyền view_all_articles = true ở trên
+    // Nên Admin sẽ luôn chạy vào nhánh if này -> Xem được tất cả bài (kể cả bài cũ thiếu createdBy)
+    if (currentPermissions.view_all_articles) {
+        q = query(getRef(), orderBy("createdAt", "desc"));
+    } else {
+        // Chỉ user thường mới bị lọc bài
+        q = query(getRef(), where("createdBy", "==", currentUser.uid), orderBy("createdAt", "desc"));
+    }
+    
     onSnapshot(q, (snapshot) => {
         const tbody = document.getElementById('table-body');
         const printBody = document.getElementById('print-table-body');
@@ -66,10 +107,18 @@ function loadData() {
 function renderRow(item, index, tbody, printBody) {
     const tr = document.createElement('tr');
     tr.className = "border-b hover:bg-gray-50";
-    const actionBtns = currentRole === 'admin' ? `
+    
+    // Logic hiển thị nút sửa/xóa
+    // Admin luôn được sửa
+    // User thường: Được sửa nếu là bài của mình VÀ có quyền tạo bài
+    let canEdit = false;
+    if (currentRole === 'admin') canEdit = true;
+    else if (item.createdBy === currentUser.uid && currentPermissions.can_create_article) canEdit = true;
+
+    const actionBtns = canEdit ? `
         <button class="text-blue-600 mr-3" onclick="openModal('${item.id}')"><i class="fas fa-edit"></i></button>
         <button class="text-red-600" onclick="deleteItem('${item.id}')"><i class="fas fa-trash"></i></button>
-    ` : '<span class="text-gray-400 text-xs">Chỉ xem</span>';
+    ` : '<span class="text-gray-300 text-xs">--</span>';
 
     tr.innerHTML = `
         <td class="text-center py-3">${index}</td>
@@ -77,7 +126,7 @@ function renderRow(item, index, tbody, printBody) {
         <td class="px-4 py-3 italic text-gray-600">${item.tacGia}</td>
         <td class="px-4 py-3">${item.noiCongBo}</td>
         <td class="text-center"><span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">${item.danhMuc}</span></td>
-        <td class="text-center action-col ${currentRole !== 'admin' ? 'hidden' : ''}">${actionBtns}</td>
+        <td class="text-center action-col">${actionBtns}</td>
     `;
     tbody.appendChild(tr);
 
@@ -93,10 +142,12 @@ function renderRow(item, index, tbody, printBody) {
 }
 
 let editId = null;
+
 window.openModal = (id = null) => {
     document.getElementById('form-article').reset();
     editId = null;
     document.getElementById('modal-title').textContent = "Thêm Mới";
+
     if (id) {
         editId = id;
         document.getElementById('modal-title').textContent = "Đang tải...";
@@ -125,16 +176,29 @@ document.getElementById('form-article').addEventListener('submit', async (e) => 
         tacGia: document.getElementById('tac-gia').value,
         noiCongBo: document.getElementById('noi-cong-bo').value,
         danhMuc: document.getElementById('danh-muc').value,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        // Luôn lưu người tạo để phục vụ cho các user thường sau này
+        createdBy: currentUser.uid, 
+        createdEmail: currentUser.email 
     };
+    
     try {
-        if (editId) await updateDoc(doc(getRef(), editId), data);
-        else { data.createdAt = Date.now(); await addDoc(getRef(), data); }
+        if (editId) {
+            // Khi sửa thì xóa createdBy để tránh ghi đè người tạo gốc thành người sửa
+            delete data.createdBy;
+            delete data.createdEmail;
+            await updateDoc(doc(getRef(), editId), data);
+        } else {
+            data.createdAt = Date.now();
+            await addDoc(getRef(), data);
+        }
         closeModal();
     } catch (err) { alert(err.message); }
 });
 
-window.deleteItem = async (id) => { if(confirm("Xóa bài này?")) await deleteDoc(doc(getRef(), id)); };
+window.deleteItem = async (id) => {
+    if(confirm("Xóa bài này?")) await deleteDoc(doc(getRef(), id));
+};
 
 window.togglePreview = () => {
     const p = document.getElementById('print-area');

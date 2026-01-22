@@ -8,7 +8,7 @@ const dashboardUi = document.getElementById('dashboard-ui');
 const loginError = document.getElementById('login-error');
 const btnLogin = document.getElementById('btn-google-login');
 
-// --- XỬ LÝ ĐĂNG NHẬP ---
+// XỬ LÝ ĐĂNG NHẬP / ĐĂNG KÝ
 btnLogin.addEventListener('click', async () => {
     loginError.classList.add('hidden');
     try {
@@ -20,62 +20,99 @@ btnLogin.addEventListener('click', async () => {
     }
 });
 
-// Kiểm tra user sau khi đăng nhập
 async function handleUserCheck(user) {
-    // 1. Check Domain
     if (!user.email.endsWith('@dhhp.edu.vn')) {
         await signOut(auth);
         alert("Chỉ chấp nhận email @dhhp.edu.vn");
         return;
     }
 
-    // 2. Lưu/Cập nhật user vào DB
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
-    let role = 'member';
+    let userData = null;
 
     if (userSnap.exists()) {
-        role = userSnap.data().role;
+        userData = userSnap.data();
     } else {
-        // Nếu là user đầu tiên của hệ thống -> Admin
+        // --- LOGIC MỚI: Người đầu tiên là Admin, người sau là 'pending' (Chờ duyệt) ---
         const qAdmin = query(collection(db, 'users'), where("role", "==", "admin"));
         const adminSnaps = await getDocs(qAdmin);
-        if (adminSnaps.empty) role = 'admin';
-
-        await setDoc(userRef, {
+        
+        const initialRole = adminSnaps.empty ? 'admin' : 'pending'; // Mặc định là chờ duyệt
+        
+        userData = {
             email: user.email,
             displayName: user.displayName,
-            role: role,
+            role: initialRole,
+            // Các quyền mặc định (false hết nếu là pending)
+            permissions: {
+                can_access_articles: initialRole === 'admin',
+                view_all_articles: initialRole === 'admin',
+                can_create_article: initialRole === 'admin'
+            },
             createdAt: Date.now()
-        });
+        };
+
+        await setDoc(userRef, userData);
     }
 
-    // 3. Hiển thị UI
-    showDashboard(user, role);
+    showDashboard(user, userData);
 }
 
-// Hiển thị giao diện Dashboard
-function showDashboard(user, role) {
+function showDashboard(user, userData) {
     loginOverlay.style.display = 'none';
     dashboardUi.classList.remove('hidden');
     dashboardUi.classList.add('flex');
 
     document.getElementById('user-name').textContent = user.displayName;
-    document.getElementById('user-role').textContent = role === 'admin' ? 'Quản trị viên' : 'Giảng viên';
+    
+    // --- HIỂN THỊ TRẠNG THÁI ---
+    const roleBadge = document.getElementById('user-role');
+    const warningBox = document.getElementById('pending-warning');
+    const moduleArticles = document.getElementById('module-articles');
+    const moduleAdmin = document.getElementById('admin-module');
 
-    // Nếu là Admin, hiện thêm module quản lý user
-    if (role === 'admin') {
-        document.getElementById('admin-module').classList.remove('hidden');
+    // Reset giao diện
+    warningBox.classList.add('hidden');
+    moduleArticles.classList.remove('opacity-50', 'pointer-events-none');
+    moduleAdmin.classList.add('hidden');
+
+    if (userData.role === 'admin') {
+        roleBadge.textContent = 'Quản trị viên';
+        roleBadge.className = 'text-xs bg-red-600 px-2 py-0.5 rounded inline-block text-white';
+        moduleAdmin.classList.remove('hidden'); // Hiện nút quản lý User
+    } 
+    else if (userData.role === 'pending') {
+        roleBadge.textContent = 'Chờ duyệt';
+        roleBadge.className = 'text-xs bg-yellow-500 px-2 py-0.5 rounded inline-block text-white';
+        
+        // Hiện thông báo chờ
+        warningBox.classList.remove('hidden');
+        
+        // Vô hiệu hóa các module
+        moduleArticles.classList.add('opacity-50', 'pointer-events-none');
+    } 
+    else {
+        // User bình thường (đã được duyệt)
+        roleBadge.textContent = 'Giảng viên';
+        roleBadge.className = 'text-xs bg-blue-600 px-2 py-0.5 rounded inline-block text-white';
+        
+        // Kiểm tra quyền vào module bài báo
+        if (!userData.permissions?.can_access_articles) {
+            moduleArticles.classList.add('opacity-50', 'pointer-events-none');
+        }
     }
 
     setupLogoutButton();
 }
 
-// Giữ trạng thái đăng nhập
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        const role = await getUserRole(user.uid);
-        showDashboard(user, role);
+        // Lấy lại data mới nhất từ DB để đảm bảo quyền đúng
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (snap.exists()) {
+            showDashboard(user, snap.data());
+        }
     } else {
         loginOverlay.style.display = 'flex';
         dashboardUi.classList.remove('flex');
