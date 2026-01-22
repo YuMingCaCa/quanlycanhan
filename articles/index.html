@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjTnSBGofmGpcMY_uEoXhgAB-FeeLjVslu1A&s">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quản Lý Bài Báo - ĐH Hải Phòng</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Lùi lại 1 cấp thư mục để lấy file CSS -->
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body class="bg-gray-100">
@@ -20,7 +19,6 @@
         <nav class="bg-blue-800 text-white shadow-md">
             <div class="container mx-auto px-4 py-3 flex justify-between items-center">
                 <div class="flex items-center space-x-3">
-                    <!-- SỬA: href="../" thay vì "../index.html" để URL sạch -->
                     <a href="../" class="bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-sm transition">
                         <i class="fas fa-arrow-left mr-1"></i> Trang chủ
                     </a>
@@ -34,18 +32,29 @@
         </nav>
 
         <main class="flex-grow container mx-auto px-4 py-6">
-            <div class="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap justify-between items-center gap-4">
-                <div class="flex space-x-2">
-                    <button onclick="openModal()" id="btn-add" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center shadow transition">
-                        <i class="fas fa-plus mr-2"></i> Thêm Mới
+            <!-- THANH CÔNG CỤ -->
+            <div class="bg-white p-4 rounded-lg shadow mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                
+                <div class="flex space-x-2 w-full md:w-auto">
+                    <button onclick="openModal()" id="btn-add" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center shadow transition whitespace-nowrap">
+                        <i class="fas fa-plus mr-2"></i> Thêm
                     </button>
-                    <button onclick="togglePreview()" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded flex items-center shadow transition">
-                        <i class="fas fa-print mr-2"></i> Mẫu In
+                    <button onclick="togglePreview()" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded flex items-center shadow transition whitespace-nowrap">
+                        <i class="fas fa-print mr-2"></i> In Đã Chọn
                     </button>
                 </div>
-                <div class="relative">
-                    <input type="text" id="search-input" placeholder="Tìm bài báo..." class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                
+                <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                    <!-- BỘ LỌC NGƯỜI DÙNG MỚI -->
+                    <select id="filter-user" class="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                        <option value="all">Tất cả tài khoản</option>
+                        <!-- Option sẽ được JS tự động thêm vào -->
+                    </select>
+
+                    <div class="relative w-full md:w-64">
+                        <input type="text" id="search-input" placeholder="Tìm tên bài, tác giả..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
                 </div>
             </div>
 
@@ -53,7 +62,11 @@
                 <table class="min-w-full leading-normal">
                     <thead class="bg-gray-100 text-gray-600 uppercase text-xs font-semibold">
                         <tr>
-                            <th class="px-5 py-3 text-center">TT</th>
+                            <!-- CỘT CHECKBOX ĐỂ CHỌN IN -->
+                            <th class="px-3 py-3 text-center w-10">
+                                <input type="checkbox" id="select-all" class="rounded">
+                            </th>
+                            <th class="px-5 py-3 text-center w-10">TT</th>
                             <th class="px-5 py-3 text-left">Tên Bài Báo</th>
                             <th class="px-5 py-3 text-left">Tác Giả</th>
                             <th class="px-5 py-3 text-left">Nơi Công Bố</th>
@@ -63,61 +76,102 @@
                     </thead>
                     <tbody id="table-body"></tbody>
                 </table>
-                <div id="empty-state" class="hidden p-8 text-center text-gray-500">Chưa có dữ liệu.</div>
+                <div id="empty-state" class="hidden p-8 text-center text-gray-500">
+                    <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i><br>
+                    Không tìm thấy dữ liệu phù hợp.
+                </div>
             </div>
         </main>
     </div>
 
+    <!-- MẪU IN -->
     <div id="print-area">
-        <div class="no-print mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded flex justify-between">
-            <span><i class="fas fa-info-circle"></i> Kiểm tra thông tin trước khi in.</span>
-            <div>
-                <button onclick="togglePreview()" class="bg-gray-500 text-white px-3 py-1 rounded">Quay lại</button>
-                <button onclick="window.print()" class="bg-blue-600 text-white px-3 py-1 rounded font-bold">IN NGAY</button>
+        <div class="no-print mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded flex justify-between items-center sticky top-0 z-10 shadow-sm">
+            <span><i class="fas fa-check-circle text-green-600"></i> Đang hiển thị danh sách để in. Kiểm tra kỹ thông tin bên dưới.</span>
+            <div class="flex gap-2">
+                <button onclick="togglePreview()" class="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600">Quay lại</button>
+                <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-1 rounded font-bold hover:bg-blue-700"><i class="fas fa-print"></i> IN NGAY</button>
             </div>
         </div>
+        
         <div class="doc-header">
             <div class="doc-header-left">UBND THÀNH PHỐ HẢI PHÒNG<br><span style="text-decoration: underline;">TRƯỜNG ĐẠI HỌC HẢI PHÒNG</span></div>
             <div class="doc-header-right">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br><span style="text-decoration: underline;">Độc lập - Tự do - Hạnh phúc</span></div>
         </div>
         <div class="doc-title">ĐĂNG KÝ NHẬN KINH PHÍ HỖ TRỢ CÔNG BỐ BÀI BÁO</div>
         <br>
-        <div>
-            Tôi là: <span class="editable-field" contenteditable="true" id="print-name">...</span><br>
-            Điện thoại: <span class="editable-field" contenteditable="true">...</span> Email: <span class="editable-field" contenteditable="true" id="print-email">...</span>
+        <div style="line-height: 1.6;">
+            Tôi là: <span class="editable-field font-bold" contenteditable="true" id="print-name">...</span><br>
+            Điện thoại: <span class="editable-field" contenteditable="true">...</span> &nbsp;&nbsp; Email: <span class="editable-field" contenteditable="true" id="print-email">...</span>
         </div>
         <br>
         <table class="print-table">
-            <thead><tr><th>TT</th><th>Tên bài báo</th><th>Tác giả</th><th>Nơi công bố</th><th>Danh mục</th></tr></thead>
+            <thead><tr><th style="width:5%">TT</th><th style="width:30%">Tên bài báo</th><th style="width:20%">Tác giả</th><th style="width:30%">Nơi công bố</th><th style="width:15%">Danh mục</th></tr></thead>
             <tbody id="print-table-body"></tbody>
         </table>
         <br><br>
         <div style="display:flex; justify-content:space-between; text-align:center">
-             <div><strong>Xác nhận đơn vị</strong><br><br><br><strong>PGS.TS Lê Đắc Nhường</strong></div>
-             <div><i>Hải Phòng, ngày...</i><br><strong>Người đăng ký</strong><br><br><br><strong id="print-signer">...</strong></div>
+             <div style="width:45%"><strong>Xác nhận đơn vị</strong><br><i>(Ký và ghi rõ họ tên)</i><br><br><br><br><strong>PGS.TS Lê Đắc Nhường</strong></div>
+             <div style="width:45%"><i>Hải Phòng, ngày...</i><br><strong>Người đăng ký</strong><br><i>(Ký và ghi rõ họ tên)</i><br><br><br><br><strong id="print-signer">...</strong></div>
         </div>
     </div>
 
+    <!-- MODAL FORM -->
     <div id="article-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-            <h3 id="modal-title" class="text-xl font-bold mb-4">Bài Báo</h3>
-            <form id="form-article" class="space-y-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 m-4">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 id="modal-title" class="text-xl font-bold">Thêm Mới</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="form-article" class="space-y-3">
                 <input type="hidden" id="article-id">
-                <textarea id="ten-bai" class="w-full border p-2 rounded" placeholder="Tên bài báo" required></textarea>
-                <input type="text" id="tac-gia" class="w-full border p-2 rounded" placeholder="Tác giả" required>
-                <textarea id="noi-cong-bo" class="w-full border p-2 rounded" placeholder="Nơi công bố" required></textarea>
-                <select id="danh-muc" class="w-full border p-2 rounded">
-                    <option>Scopus Q1</option><option>Scopus Q2</option><option>Scopus Q3</option><option>Scopus Q4</option><option>ISI/WoS</option><option>Khác</option>
-                </select>
-                <div class="flex justify-end pt-2 gap-2">
-                    <button type="button" onclick="closeModal()" class="bg-gray-300 px-4 py-2 rounded">Hủy</button>
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Lưu</button>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tên bài báo</label>
+                    <textarea id="ten-bai" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" rows="2" required></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tác giả</label>
+                    <input type="text" id="tac-gia" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Nơi công bố / ISSN</label>
+                    <textarea id="noi-cong-bo" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" rows="2" required></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Danh mục</label>
+                    <select id="danh-muc" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                        <optgroup label="Tạp chí Quốc tế">
+                            <option value="Scopus Q1">Scopus Q1</option>
+                            <option value="Scopus Q2">Scopus Q2</option>
+                            <option value="Scopus Q3">Scopus Q3</option>
+                            <option value="Scopus Q4">Scopus Q4</option>
+                            <option value="ISI/WoS">ISI / Web of Science</option>
+                            <option value="ESCI">ESCI</option>
+                            <option value="Tạp chí Quốc tế khác">Tạp chí Quốc tế khác</option>
+                        </optgroup>
+                        <optgroup label="Trong nước & Hội nghị">
+                            <option value="Tạp chí Trong nước (0-1 điểm)">Tạp chí Trong nước (HĐGSNN 0-1 điểm)</option>
+                            <option value="Tạp chí Trong nước (khác)">Tạp chí Trong nước (khác)</option>
+                            <option value="Hội nghị Quốc tế (Proceedings)">Hội nghị Quốc tế (Proceedings)</option>
+                            <option value="Hội nghị Trong nước">Hội nghị Trong nước</option>
+                        </optgroup>
+                        <optgroup label="Khác">
+                            <option value="Sách chuyên khảo/Giáo trình">Sách chuyên khảo / Giáo trình</option>
+                            <option value="Khác">Khác</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="flex justify-end pt-4 gap-2">
+                    <button type="button" onclick="closeModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">Hủy</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Lưu dữ liệu</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Lùi lại 1 cấp thư mục để lấy file JS -->
     <script type="module" src="../js/articles.js"></script>
 </body>
 </html>
