@@ -3,24 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản Lý Bài Báo Khoa Học - ĐH Hải Phòng</title>
-    <!-- Tailwind CSS (Dùng CDN cho nhanh, nếu muốn offline thì tải về) -->
+    <title>Cổng Thông Tin Khoa Học - ĐH Hải Phòng</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Link tới file CSS của chúng ta -->
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="bg-gray-100">
 
-    <!-- --- MÀN HÌNH ĐĂNG NHẬP --- -->
-    <div id="login-overlay">
+    <!-- OVERLAY ĐĂNG NHẬP (Chỉ hiện khi chưa login) -->
+    <div id="login-overlay" class="fixed inset-0 bg-white z-50 flex flex-col justify-center items-center">
         <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md w-full border border-gray-200">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Logo_Đại_học_Hải_Phòng.png" alt="Logo DHHP" class="h-24 mx-auto mb-4 object-contain">
-            <h2 class="text-2xl font-bold text-blue-900 mb-2">Hệ Thống Quản Lý Bài Báo</h2>
-            <p class="text-gray-600 mb-8 text-sm">Vui lòng đăng nhập bằng Email nhà trường<br><b>(@dhhp.edu.vn)</b></p>
-            
-            <button id="btn-google-login" class="w-full flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-sm transition duration-150 ease-in-out">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Logo_Đại_học_Hải_Phòng.png" alt="Logo" class="h-24 mx-auto mb-4 object-contain">
+            <h2 class="text-2xl font-bold text-blue-900 mb-2">Hệ Thống Quản Lý Khoa Học</h2>
+            <p class="text-gray-600 mb-8 text-sm">Đăng nhập bằng Email nhà trường <b>(@dhhp.edu.vn)</b></p>
+            <button id="btn-google-login" class="w-full flex items-center justify-center bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-lg shadow-sm transition">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6 mr-3">
                 Đăng nhập với Google
             </button>
@@ -28,157 +24,78 @@
         </div>
     </div>
 
-    <!-- --- GIAO DIỆN CHÍNH (Ẩn chờ login) --- -->
-    <div id="app-ui" class="min-h-screen flex flex-col hidden">
+    <!-- DASHBOARD (Hiện sau khi login) -->
+    <div id="dashboard-ui" class="min-h-screen hidden flex-col">
         <!-- Navbar -->
         <nav class="bg-blue-900 text-white shadow-lg">
-            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="container mx-auto px-6 py-4 flex justify-between items-center">
                 <div class="flex items-center space-x-3">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Logo_Đại_học_Hải_Phòng.png" class="h-8 bg-white rounded-full p-0.5">
-                    <h1 class="text-lg font-bold hidden md:block">QL Bài Báo Khoa Học</h1>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/e/e8/Logo_Đại_học_Hải_Phòng.png" class="h-10 bg-white rounded-full p-1">
+                    <div>
+                        <h1 class="text-xl font-bold">Dashboard</h1>
+                        <p class="text-xs text-blue-200">Đại học Hải Phòng</p>
+                    </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div id="user-name" class="font-bold text-sm">Đang tải...</div>
-                        <div id="user-role-badge" class="text-xs bg-gray-600 px-2 rounded inline-block">Khách</div>
+                    <div class="text-right hidden md:block">
+                        <div id="user-name" class="font-bold">...</div>
+                        <div id="user-role" class="text-xs bg-blue-700 px-2 py-0.5 rounded inline-block">...</div>
                     </div>
-                    <button id="btn-logout" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-xs transition">
-                        <i class="fas fa-sign-out-alt"></i> Thoát
+                    <button id="btn-logout" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded text-sm transition shadow">
+                        <i class="fas fa-sign-out-alt mr-1"></i> Thoát
                     </button>
                 </div>
             </div>
         </nav>
 
-        <!-- Main Content -->
-        <main class="flex-grow container mx-auto px-4 py-6">
-            <!-- Toolbar -->
-            <div class="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap justify-between items-center gap-4">
-                <div class="flex space-x-2">
-                    <button onclick="openModal()" id="btn-add-new" class="hidden bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded flex items-center shadow transition">
-                        <i class="fas fa-plus mr-2"></i> Thêm Mới
-                    </button>
-                    <button onclick="togglePreview()" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded flex items-center shadow transition">
-                        <i class="fas fa-file-word mr-2"></i> Mẫu In
-                    </button>
-                    <button onclick="openUserModal()" id="btn-manage-users" class="hidden bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded flex items-center shadow transition">
-                        <i class="fas fa-users-cog mr-2"></i> Phân Quyền
-                    </button>
-                </div>
+        <!-- Main Grid -->
+        <main class="flex-grow container mx-auto px-6 py-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-l-4 border-blue-600 pl-3">Các Hệ Thống Quản Lý</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                <div class="relative">
-                    <input type="text" id="search-input" placeholder="Tìm kiếm..." class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                </div>
-            </div>
+                <!-- MODULE 1: BÀI BÁO KHOA HỌC -->
+                <a href="articles.html" class="block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group">
+                    <div class="bg-blue-600 h-2 group-hover:bg-blue-500 transition"></div>
+                    <div class="p-6">
+                        <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-4 text-2xl">
+                            <i class="fas fa-newspaper"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Quản Lý Bài Báo</h3>
+                        <p class="text-gray-600 text-sm">Thống kê, thêm mới và in ấn đề nghị thanh toán bài báo khoa học quốc tế/trong nước.</p>
+                    </div>
+                </a>
 
-            <!-- Bảng Dữ Liệu -->
-            <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
-                <table class="min-w-full leading-normal">
-                    <thead>
-                        <tr class="bg-gray-100 text-gray-600 uppercase text-xs font-semibold">
-                            <th class="px-5 py-3 text-center w-10">TT</th>
-                            <th class="px-5 py-3 text-left">Tên Bài Báo</th>
-                            <th class="px-5 py-3 text-left">Tác Giả</th>
-                            <th class="px-5 py-3 text-left">Nơi Công Bố / ISSN / Năm</th>
-                            <th class="px-5 py-3 text-center">Danh Mục</th>
-                            <th class="px-5 py-3 text-center w-32 admin-only hidden">Thao Tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="article-table-body"></tbody>
-                </table>
-                <div id="loading-indicator" class="flex justify-center p-8"><div class="loader"></div></div>
-                <div id="empty-state" class="hidden p-8 text-center text-gray-500">Chưa có dữ liệu.</div>
+                <!-- MODULE 2: (Ví dụ tương lai - Đề tài NCKH) -->
+                <div class="bg-white rounded-xl shadow-md opacity-60 cursor-not-allowed overflow-hidden relative">
+                    <div class="absolute top-4 right-4 bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded">Sắp ra mắt</div>
+                    <div class="bg-gray-400 h-2"></div>
+                    <div class="p-6">
+                        <div class="w-12 h-12 bg-gray-100 text-gray-500 rounded-lg flex items-center justify-center mb-4 text-2xl">
+                            <i class="fas fa-flask"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-700 mb-2">Đề Tài NCKH</h3>
+                        <p class="text-gray-500 text-sm">Quản lý tiến độ và kinh phí đề tài nghiên cứu khoa học các cấp.</p>
+                    </div>
+                </div>
+
+                <!-- MODULE 3: (Ví dụ tương lai - Quản lý Admin) -->
+                <div id="admin-module" class="hidden bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden border-2 border-purple-100">
+                    <div class="bg-purple-600 h-2"></div>
+                    <div class="p-6">
+                        <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mb-4 text-2xl">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Phân Quyền Hệ Thống</h3>
+                        <p class="text-gray-600 text-sm">Chức năng dành riêng cho Admin để quản lý người dùng và cấp quyền truy cập.</p>
+                        <button onclick="alert('Chức năng này sẽ được phát triển trong module admin.html')" class="mt-3 text-purple-600 text-sm font-semibold hover:underline">Truy cập ngay &rarr;</button>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
 
-    <!-- --- FORM IN ẤN --- -->
-    <div id="print-area">
-        <div class="no-print mb-4 p-2 bg-yellow-100 border border-yellow-300 rounded text-sm text-yellow-800 flex justify-between items-center">
-            <span><i class="fas fa-info-circle"></i> Kiểm tra thông tin trước khi in.</span>
-            <div class="space-x-2">
-                <button onclick="togglePreview()" class="bg-gray-500 text-white px-3 py-1 rounded hover:bg-gray-600">Quay lại</button>
-                <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700 font-bold"><i class="fas fa-print"></i> IN NGAY</button>
-            </div>
-        </div>
-
-        <div class="doc-header">
-            <div class="doc-header-left">UBND THÀNH PHỐ HẢI PHÒNG<br><span style="text-decoration: underline;">TRƯỜNG ĐẠI HỌC HẢI PHÒNG</span></div>
-            <div class="doc-header-right">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM<br><span style="text-decoration: underline;">Độc lập - Tự do - Hạnh phúc</span></div>
-        </div>
-        <div class="doc-title">ĐĂNG KÝ NHẬN KINH PHÍ HỖ TRỢ CÔNG BỐ BÀI BÁO<br><span style="font-weight: normal; font-size: 12pt; font-style: italic;">(Áp dụng với công trình công bố quốc tế trong năm xét hỗ trợ kinh phí)</span></div>
-        
-        <div style="margin-left: 20px;">
-            <strong>Kính gửi:</strong>
-            <ul style="list-style: none; margin-left: 20px;"><li>- Hiệu trưởng Trường Đại học Hải Phòng;</li><li>- Phòng Kế hoạch - Tài chính;</li><li>- Phòng Khoa học Công nghệ và Hợp tác quốc tế;</li><li>- Khoa Công nghệ thông tin</li></ul>
-        </div>
-        <br>
-        <div style="line-height: 1.6;">
-            Tôi là: <span class="editable-field" contenteditable="true" id="print-name">...</span><br>
-            Học hàm, học vị: <span class="editable-field" contenteditable="true">Thạc Sỹ</span><br>
-            Lĩnh vực chuyên môn: <span class="editable-field" contenteditable="true">Công nghệ thông tin</span><br>
-            Đơn vị công tác: <span class="editable-field" contenteditable="true">Khoa Công nghệ thông tin</span><br>
-            Điện thoại liên lạc: <span class="editable-field" contenteditable="true">...</span> &nbsp;&nbsp; Email: <span class="editable-field" contenteditable="true" id="print-email">...</span>
-        </div>
-        <p style="margin-top: 10px; text-align: justify;">Căn cứ Quy chế chi tiêu nội bộ của Trường Đại học Hải Phòng, trong thời gian qua Tôi đã hoàn thành nhiệm vụ NCKH cấp cơ sở, nay tôi làm đơn này đăng ký nhận kinh phí hỗ trợ xuất bản các bài báo của Nhà trường, cụ thể:</p>
-        
-        <table class="print-table">
-            <thead><tr><th width="5%">TT</th><th width="25%">Tên bài báo</th><th width="20%">Tác giả</th><th width="35%">Nơi công bố</th><th width="15%">Danh mục</th></tr></thead>
-            <tbody id="print-table-body"></tbody>
-        </table>
-        
-        <p style="margin-top: 10px;">(Có minh chứng đính kèm)<br>Tôi cam kết thông tin đăng ký trên là hoàn toàn chính xác.</p>
-        <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 20px;">
-            <div style="width: 45%;"><strong>Xác nhận của đơn vị</strong><br><i>(Ký và ghi rõ họ tên)</i><br><br><br><br><strong>PGS.TS Lê Đắc Nhường</strong></div>
-            <div style="width: 45%;"><i>Hải Phòng, ngày <span id="print-day">...</span> tháng <span id="print-month">...</span> năm <span id="print-year">...</span></i><br><strong>Người đăng ký</strong><br><i>(Ký và ghi rõ họ tên)</i><br><br><br><br><strong id="print-signer">...</strong></div>
-        </div>
-    </div>
-
-    <!-- Modal Thêm/Sửa -->
-    <div id="article-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 m-4">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 id="modal-title" class="text-xl font-bold text-gray-800">Thông tin Bài Báo</h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
-            </div>
-            <form id="form-article" class="space-y-4">
-                <input type="hidden" id="article-id">
-                <div><label class="block text-sm font-medium text-gray-700">Tên bài báo</label><textarea id="ten-bai" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" rows="2" required></textarea></div>
-                <div><label class="block text-sm font-medium text-gray-700">Tác giả</label><input type="text" id="tac-gia" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" required></div>
-                <div><label class="block text-sm font-medium text-gray-700">Nơi công bố / ISSN</label><textarea id="noi-cong-bo" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" rows="2" required></textarea></div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Danh mục</label>
-                    <select id="danh-muc" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                        <option>Scopus Q1</option><option>Scopus Q2</option><option>Scopus Q3</option><option>Scopus Q4</option><option>ISI/WoS</option><option>Tạp chí Quốc tế khác</option><option>Tạp chí Trong nước</option>
-                    </select>
-                </div>
-                <div class="flex justify-end pt-4 space-x-2">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Lưu dữ liệu</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal User -->
-    <div id="users-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 m-4 h-3/4 flex flex-col">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h3 class="text-xl font-bold text-gray-800">Phân Quyền Người Dùng</h3>
-                <button onclick="document.getElementById('users-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="overflow-y-auto flex-grow">
-                <table class="min-w-full text-sm">
-                    <thead class="bg-gray-100">
-                        <tr><th class="px-4 py-2 text-left">Email</th><th class="px-4 py-2">Vai trò hiện tại</th><th class="px-4 py-2">Hành động</th></tr>
-                    </thead>
-                    <tbody id="users-table-body"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Link tới file JS chính của chúng ta -->
-    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>
