@@ -89,6 +89,28 @@
                     </div>
                 </a>
 
+                <a id="module-categories" href="categories/" class="hidden block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden border-2 border-green-100">
+                    <div class="bg-green-600 h-2"></div>
+                    <div class="p-6">
+                        <div class="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mb-4 text-2xl">
+                            <i class="fas fa-list-alt"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Danh Mục Bài Báo</h3>
+                        <p class="text-gray-600 text-sm">Quản lý các danh mục và số giờ quy đổi tương ứng.</p>
+                    </div>
+                </a>
+
+                <a id="module-years" href="years/" class="hidden block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden border-2 border-yellow-100">
+                    <div class="bg-yellow-500 h-2"></div>
+                    <div class="p-6">
+                        <div class="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-lg flex items-center justify-center mb-4 text-2xl">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Năm Học</h3>
+                        <p class="text-gray-600 text-sm">Quản lý danh sách các năm học có trong hệ thống.</p>
+                    </div>
+                </a>
+
                 <a href="admin/" id="admin-module" class="hidden block bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden border-2 border-purple-100">
                     <div class="bg-purple-600 h-2"></div>
                     <div class="p-6">
@@ -102,6 +124,27 @@
 
             </div>
         </main>
+    </div>
+
+    <!-- MODAL HỒ SƠ TÁC GIẢ -->
+    <div id="profile-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-gray-800">Cập Nhật Tên Tác Giả</h3>
+                <button onclick="window.closeProfileModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="form-profile" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tên hiển thị trong các bài báo</label>
+                    <input type="text" id="profile-author-name" class="w-full border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="VD: Nguyễn Văn A" required>
+                    <p class="text-xs text-gray-500 mt-1"><i class="fas fa-info-circle"></i> Nhập chính xác tên của bạn giống như khi thêm mới bài báo để hệ thống tự động chia đúng số giờ quy đổi.</p>
+                </div>
+                <div class="flex justify-end pt-4 gap-2">
+                    <button type="button" onclick="window.closeProfileModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">Hủy</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script type="module" src="js/dashboard.js"></script>
